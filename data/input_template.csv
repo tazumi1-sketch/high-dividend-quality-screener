@@ -1,0 +1,2 @@
+code,ticker,company,price,dividend_yield,market_cap_bil,equity_ratio,debt_equity,operating_margin,net_income_bil,free_cash_flow_bil,payout_ratio,dividend_cuts_5y,dividend_maintained_years,eps,per,data_as_of,source
+0000,0000.T,会社名,1000,5.0,1000,50,50,10,50,50,45,0,5,100,10,2026-09-20,入力例
