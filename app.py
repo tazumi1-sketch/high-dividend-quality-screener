@@ -195,7 +195,8 @@ def fetch_one(ticker: str, code: str, fallback_name: str) -> dict:
     return {
         "code": code,
         "ticker": ticker,
-        "company": info.get("longName") or info.get("shortName") or fallback_name,
+        # 銘柄一覧に登録した日本語名を画面表示とCSV出力で統一して使う。
+        "company": fallback_name or info.get("longName") or info.get("shortName") or code,
         "price": as_num(info.get("currentPrice") or info.get("regularMarketPrice")),
         "dividend_yield": pct(info.get("dividendYield")),
         "market_cap_bil": as_num(info.get("marketCap")) / 1e9,
