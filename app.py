@@ -232,6 +232,23 @@ def fetch_online(selected_codes: tuple[str, ...]) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+@st.cache_data(ttl=1800, show_spinner=False)
+def fetch_price_history(ticker: str, period: str) -> pd.DataFrame:
+    """個別銘柄チャート用の株価履歴を取得する。"""
+    import yfinance as yf
+
+    history = yf.Ticker(ticker).history(period=period, auto_adjust=False)
+    if history is None or history.empty or "Close" not in history.columns:
+        return pd.DataFrame()
+
+    chart = history[["Close", "Volume"]].copy()
+    chart.index = pd.to_datetime(chart.index).tz_localize(None)
+    chart["5日移動平均"] = chart["Close"].rolling(5).mean()
+    chart["25日移動平均"] = chart["Close"].rolling(25).mean()
+    chart["75日移動平均"] = chart["Close"].rolling(75).mean()
+    return chart.rename(columns={"Close": "終値", "Volume": "出来高"})
+
+
 @st.cache_data
 def load_demo() -> pd.DataFrame:
     return pd.read_csv(DEMO_DATA, dtype={"code": str})
@@ -356,6 +373,42 @@ with detail_tab:
                 ["PER", r["per"], "20倍以下を優先"],
             ], columns=["項目", "実データ", "目安"])
             st.dataframe(details, hide_index=True, width="stretch")
+
+            st.markdown("#### 株価チャート")
+            period_labels = {
+                "3か月": "3mo",
+                "6か月": "6mo",
+                "1年": "1y",
+                "2年": "2y",
+                "5年": "5y",
+            }
+            selected_period = st.radio(
+                "表示期間",
+                list(period_labels),
+                index=2,
+                horizontal=True,
+                key=f"chart_period_{r['code']}",
+            )
+            ticker = str(r.get("ticker", "")).strip()
+            if not ticker and str(r["code"]).isdigit():
+                ticker = f"{r['code']}.T"
+            if ticker:
+                try:
+                    history = fetch_price_history(ticker, period_labels[selected_period])
+                    if history.empty:
+                        st.warning("この銘柄の株価チャートを取得できませんでした。")
+                    else:
+                        visible_lines = ["終値", "5日移動平均", "25日移動平均"]
+                        if selected_period in {"1年", "2年", "5年"}:
+                            visible_lines.append("75日移動平均")
+                        st.line_chart(history[visible_lines], height=360)
+                        st.caption("終値と移動平均線（5日・25日・75日）")
+                        st.bar_chart(history[["出来高"]], height=180)
+                        st.caption("出来高　｜　データ提供：Yahoo Finance（遅延・欠損の可能性があります）")
+                except Exception:
+                    st.warning("株価チャートの取得に失敗しました。時間を置いて再度お試しください。")
+            else:
+                st.info("このデータには証券コードがないため、株価チャートを表示できません。")
     else:
         st.caption("先に「データ」タブで対象データを読み込んでください。")
 
